@@ -1,3 +1,14 @@
+/*
+caffe 的 FC 本质还是通过 GEMM 矩阵乘法来实现的，而 GEMM 乘法只是二维的矩阵乘法，所以关键是输入 shape 的变换， 
+这个是由 caffe prototxt 参数 axis 决定
+实现公式：
+axis = 2 
+	h*w == K_
+	Input[n,c,h,w] * weight[K_,N_] = Input[n,c, h*w] * weight[K_,N_] = Input[M_,K_] * weight[K_,N_] = out[M_, N_] = out[n,c,N_]
+	                                 
+									 K_ = bottom[0]->count(axis) 
+									 M_ = bottom[0]->count(0, axis)                                   top_shape[axis] = N_;
+*/
 #include <vector>
 
 #include "caffe/filler.hpp"
@@ -9,16 +20,17 @@ namespace caffe {
 template <typename Dtype>
 void InnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  const int num_output = this->layer_param_.inner_product_param().num_output();
-  bias_term_ = this->layer_param_.inner_product_param().bias_term();
+  // 读入prototxt，解析prototxt中的参数
+  const int num_output = this->layer_param_.inner_product_param().num_output(); // 解析输出output
+  bias_term_ = this->layer_param_.inner_product_param().bias_term(); // 解析是否包含bias
   transpose_ = this->layer_param_.inner_product_param().transpose();
   N_ = num_output;
   const int axis = bottom[0]->CanonicalAxisIndex(
-      this->layer_param_.inner_product_param().axis());
+      this->layer_param_.inner_product_param().axis()); // 获取矩阵乘法的shape 分割轴
   // Dimensions starting from "axis" are "flattened" into a single
   // length K_ vector. For example, if bottom[0]'s shape is (N, C, H, W),
   // and axis == 1, N inner products with dimension CHW are performed.
-  K_ = bottom[0]->count(axis);
+  K_ = bottom[0]->count(axis); // 根据axis作为起始轴(包含) 计算到末轴的数据量 (N, C, H, W) -> axis = 1,  K_ =  C*H*W
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
     LOG(INFO) << "Skipping parameter initialization";
@@ -65,11 +77,11 @@ void InnerProductLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       << "Input size incompatible with inner product parameters.";
   // The first "axis" dimensions are independent inner products; the total
   // number of these is M_, the product over these dimensions.
-  M_ = bottom[0]->count(0, axis);
+  M_ = bottom[0]->count(0, axis); //  计算输入的[0, axis)内的数据量
   // The top shape will be the bottom shape with the flattened axes dropped,
   // and replaced by a single axis with dimension num_output (N_).
   vector<int> top_shape = bottom[0]->shape();
-  top_shape.resize(axis + 1);
+  top_shape.resize(axis + 1); // top的输出可以1,2,3,4维度，根据axis定
   top_shape[axis] = N_;
   top[0]->Reshape(top_shape);
   // Set up the bias multiplier
