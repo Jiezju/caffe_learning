@@ -1,0 +1,59 @@
+name: "FC1"
+layer {
+  name: "data"
+  type: "Input"
+  top: "data"
+  input_param { shape: { dim: 1 dim: 3 dim: 4 dim: 6 } }
+}
+layer {
+  name: "reshape1"
+  type: "Reshape"
+  bottom: "data"
+  top: "out0"
+  reshape_param {
+    shape {
+		dim: 0
+		dim: 0
+		dim: -1
+	}
+  }
+}
+layer {
+  name: "reshape2"
+  type: "Reshape"
+  bottom: "data"
+  top: "out1"
+  reshape_param {
+    shape {
+		dim: -1
+	}
+	axis: 1
+	num_axes: 2
+  }
+}
+layer {
+  name: "reshape3"
+  type: "Reshape"
+  bottom: "data"
+  top: "out2"
+  reshape_param {
+    shape {
+		dim: 4
+		dim: 3
+	}
+	axis: 1
+	num_axes: 2
+  }
+}
+layer {
+  name: "reshape4"
+  type: "Reshape"
+  bottom: "data"
+  top: "out3"
+  reshape_param {
+    shape {
+		dim: 6
+	}
+	num_axes: 1
+  }
+}
