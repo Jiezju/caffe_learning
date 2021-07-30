@@ -9,13 +9,15 @@ template <typename Dtype>
 void Permute(const int count, Dtype* bottom_data, const bool forward,
     const int* permute_order, const int* old_steps, const int* new_steps,
     const int num_axes, Dtype* top_data) {
+	// i 遍历输出 top 的索引index
     for (int i = 0; i < count; ++i) {
       int old_idx = 0;
       int idx = i;
+      // 从输出的index i 计算对应原来的数组索引 old_index
       for (int j = 0; j < num_axes; ++j) {
         int order = permute_order[j];
-		int temp1 = idx / new_steps[j];
-		int temp2 = temp1 * old_steps[order];
+		/*int temp1 = idx / new_steps[j];
+		int temp2 = temp1 * old_steps[order];*/
         old_idx += (idx / new_steps[j]) * old_steps[order]; // 根据新的偏移量计算原有的idx
         idx %= new_steps[j];
       }
