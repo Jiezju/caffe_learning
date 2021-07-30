@@ -50,6 +50,12 @@ void ReshapeLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
    *		}
    *		axis: 1
    *		num_axes: 2
+   *    reshape_param {
+   *		shape {
+   *			dim: -1
+   *		}
+   *		axis: 1
+   *		num_axes: 2
    *	}
    *
    *	1. start_axis = axis = 1  ;  end_axis = start_axis + num_axes = 3

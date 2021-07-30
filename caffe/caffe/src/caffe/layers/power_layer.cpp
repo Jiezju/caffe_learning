@@ -96,7 +96,27 @@ void PowerLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 STUB_GPU(PowerLayer);
 #endif
 
-INSTANTIATE_CLASS(PowerLayer);
+INSTANTIATE_CLASS(PowerLayer); // 在头文件进行实例化
 REGISTER_LAYER_CLASS(Power);
+
+/*
+等价写法
+
+char gInstantiationGuardPowerLayer;
+template class PowerLayer<float>;
+template class PowerLayer<double>;
+
+template <typename Dtype>
+shared_ptr<Layer<Dtype> > Creator_PowerLayer(const LayerParameter& param)
+{
+return shared_ptr<Layer<Dtype> >(new PowerLayer<Dtype>(param));
+}
+static LayerRegisterer<float> g_creator_f_Power(“Power”, Creator_PowerLayer<float>);
+static LayerRegisterer<double> g_creator_d_Power(“Power”, Creator_PowerLayer<double>);
+ 
+ 
+ 
+  
+ */
 
 }  // namespace caffe
