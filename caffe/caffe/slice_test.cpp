@@ -13,29 +13,28 @@ int main()
 
 	int layer_idx = CaffeHelper::get_layer_index(net, scale_layer_name);
 
-	boost::shared_ptr<Layer<float>> scale_layer = net->layers()[layer_idx];
-	vector<boost::shared_ptr<Blob<float>>> scale_blobs = scale_layer->blobs();
+	//boost::shared_ptr<Layer<float>> scale_layer = net->layers()[layer_idx];
+	//vector<boost::shared_ptr<Blob<float>>> scale_blobs = scale_layer->blobs();
 
 	// init input
 	float* input_ptr = CaffeHelper::_generate_random_input(net->input_blobs()[0]->count());
 
-	// init weight
-	float* weight_ptr = scale_blobs[0]->mutable_cpu_data();
-	float* bias_ptr = scale_blobs[1]->mutable_cpu_data();
+	//// init weight
+	//float* weight_ptr = scale_blobs[0]->mutable_cpu_data();
+	//float* bias_ptr = scale_blobs[1]->mutable_cpu_data();
 
-	float* muta_weight = CaffeHelper::_generate_random_input(scale_blobs[0]->count());
-	float* muta_bias = CaffeHelper::_generate_random_input(scale_blobs[1]->count());
+	//float* muta_weight = CaffeHelper::_generate_random_input(scale_blobs[0]->count());
+	//float* muta_bias = CaffeHelper::_generate_random_input(scale_blobs[1]->count());
 
-	memcpy(weight_ptr, muta_weight, scale_blobs[0]->count()*sizeof(float));
-	memcpy(bias_ptr, muta_bias, scale_blobs[1]->count()*sizeof(float));
+	//memcpy(weight_ptr, muta_weight, scale_blobs[0]->count()*sizeof(float));
+	//memcpy(bias_ptr, muta_bias, scale_blobs[1]->count()*sizeof(float));
 
 	CaffeHelper::caffe_forward(net, input_ptr);
 
 	vector<Blob<float>*> output_blobs = net->output_blobs();
 
 	
-	delete[] muta_weight;
-	delete[] muta_bias;
+	delete[] input_ptr;
 
 	return 0;
 }
