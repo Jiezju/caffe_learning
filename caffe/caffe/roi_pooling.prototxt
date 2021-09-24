@@ -1,0 +1,35 @@
+layer{
+name: "input"
+type: "Input"
+top:  "rois"
+input_param {
+    shape{
+  dim: 30
+  dim: 5
+    }
+    }
+}
+layer{
+name: "input"
+type: "Input"
+top:  "conv"
+input_param {
+    shape{
+  dim: 1
+  dim: 256
+  dim: 16
+  dim: 20
+    }
+    }
+}
+layer {
+  name: "roi_pool_conv5"
+  type: "ROIPooling"
+  bottom: "conv"
+  bottom: "rois"
+  top: "roi_pool_conv5"
+  roi_pooling_param {
+    pooled_w: 6  pooled_h: 6
+    spatial_scale: 0.0625 # 1/16
+  }
+}

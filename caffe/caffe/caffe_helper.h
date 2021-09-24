@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 #include <time.h>
+#include <fstream>
+#include <cassert>
 
 using namespace caffe;
 
@@ -58,5 +60,33 @@ namespace CaffeHelper{
 		}
 
 		return input;
+	}
+
+	void load_data_from_txt(vector<double>& data, const string& filename)
+	{
+		std::ifstream file(filename, ios::in);
+		//assert(file.is_open());
+		if (!file.is_open())//判断文件是否打开
+		{
+			std::cout << "Error opening file" << std::endl;
+		}
+		string line;
+		double num;
+		while (getline(file, line))
+		{
+			stringstream ss(line);
+			ss >> num;
+			data.push_back(num);
+		}
+	}
+
+	void memcpy_from_vector(float* bptr, vector<double> data)
+	{
+		int elemSize = data.size();
+
+		for (int i = 0; i < elemSize; ++i)
+		{
+			bptr[i] = (float)data[i];
+		}
 	}
 }
