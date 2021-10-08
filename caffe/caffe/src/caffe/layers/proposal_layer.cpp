@@ -102,6 +102,7 @@ namespace caffe
                              const Dtype img_W, const Dtype img_H,
                              const Dtype min_box_W, const Dtype min_box_H)
     {
+        /* step 1 将(x1, y1, x2, y2) 转换成 （x_ctr,y_ctr,w,h） 因为预测值是基于后者预测的*/
         // width & height of box
         const Dtype w = box[2] - box[0] + (Dtype)1;
         const Dtype h = box[3] - box[1] + (Dtype)1;
@@ -109,6 +110,7 @@ namespace caffe
         const Dtype ctr_x = box[0] + (Dtype)0.5 * w;
         const Dtype ctr_y = box[1] + (Dtype)0.5 * h;
 
+        /* step 2 计算基于预测值校正的anchor 即 proposal */
         // new center location according to gradient (dx, dy)
         const Dtype pred_ctr_x = dx * w + ctr_x;
         const Dtype pred_ctr_y = dy * h + ctr_y;
@@ -116,6 +118,7 @@ namespace caffe
         const Dtype pred_w = exp(d_log_w) * w;
         const Dtype pred_h = exp(d_log_h) * h;
 
+        /* step 3 在将校正后proposal 还原为(x1, y1, x2, y2) 格式 */ 
         // update upper-left corner location
         box[0] = pred_ctr_x - (Dtype)0.5 * pred_w;
         box[1] = pred_ctr_y - (Dtype)0.5 * pred_h;
@@ -123,6 +126,7 @@ namespace caffe
         box[2] = pred_ctr_x + (Dtype)0.5 * pred_w;
         box[3] = pred_ctr_y + (Dtype)0.5 * pred_h;
 
+        /* step 4 框的剪裁 截取图像范围内的框，必须大于最小尺寸的框*/
         // adjust new corner locations to be within the image region,
         box[0] = std::max((Dtype)0, std::min(box[0], img_W - (Dtype)1));
         box[1] = std::max((Dtype)0, std::min(box[1], img_H - (Dtype)1));
@@ -141,6 +145,7 @@ namespace caffe
     static void sort_box(Dtype list_cpu[], const int start, const int end,
                          const int num_top)
     {
+        /*这种排序比较慢 可以优化成索引排序，避免大量的swap*/
         // quick sort 按score值进行排序
         const Dtype pivot_score = list_cpu[start * 5 + 4];
         int left = start + 1, right = end;
@@ -266,6 +271,7 @@ namespace caffe
         {
             for (int w = 0; w < bottom_W; ++w)
             {
+                // 计算左上角的坐标 （x,y）
                 const Dtype x = w * feat_stride;
                 const Dtype y = h * feat_stride;
                 /*
@@ -300,6 +306,24 @@ namespace caffe
                     const Dtype dy = p_box[(k * 4 + 1) * bottom_area];
                     const Dtype d_log_w = p_box[(k * 4 + 2) * bottom_area];
                     const Dtype d_log_h = p_box[(k * 4 + 3) * bottom_area];
+
+                    /*
+                            
+                    base anchor [x0,y0,x1,y1]
+
+                           (x0,y0)
+                             _ _ _ _ _ _ _ _
+                            |               |
+                            |               |
+                            |       *c      |
+                            |      (7.5,7.5)| 
+                            |_ _ _ _ _ _ _ _|
+
+                                            (x1,y1)
+
+                        (x,y) 为左上点，在左上点的偏移就获取了基于当前点（x,y）的base anchor
+                    
+                    */
 
                     p_proposal[0] = x + anchors[k * 4 + 0];
                     p_proposal[1] = y + anchors[k * 4 + 1];
@@ -437,12 +461,17 @@ namespace caffe
             // NOTE: for bottom, only foreground scores are passed
             proposals_shape[0] = num_proposals;
             proposals_.Reshape(proposals_shape);
+            
+            // p_bottom_item + num_proposals（8000） 的原因是
+            // 输入的内存是 1*2*8000 所以前8000个时背景得分，后8000个是前景得分
+            // 基于预测的偏移量计算 anchor 为proposal
             enumerate_proposals_cpu(
                 p_bottom_item + num_proposals, p_d_anchor_item,
                 anchors_.cpu_data(), proposals_.mutable_cpu_data(), anchors_.shape(0),
                 bottom_H, bottom_W, img_H, img_W, min_box_H, min_box_W,
                 feat_stride_);
 
+            // 对生成的proposal 按 score值排序
             sort_box(proposals_.mutable_cpu_data(), 0, num_proposals - 1, pre_nms_topn_);
 
             nms_cpu(pre_nms_topn, proposals_.cpu_data(),
