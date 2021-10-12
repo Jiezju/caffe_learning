@@ -9,15 +9,22 @@ namespace caffe {
 template <typename Dtype>
 void SoftmaxLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
+  // 以输入 [1,3,12] axis = 1 为例
   softmax_axis_ =
       bottom[0]->CanonicalAxisIndex(this->layer_param_.softmax_param().axis());
-  top[0]->ReshapeLike(*bottom[0]);
-  vector<int> mult_dims(1, bottom[0]->shape(softmax_axis_));
+  top[0]->ReshapeLike(*bottom[0]); // top[0] -> [1,3,12]
+  
+  // mult_dims [1,3] 全1 向量
+  vector<int> mult_dims(1, bottom[0]->shape(softmax_axis_)); 
   sum_multiplier_.Reshape(mult_dims);
   Dtype* multiplier_data = sum_multiplier_.mutable_cpu_data();
   caffe_set(sum_multiplier_.count(), Dtype(1), multiplier_data);
-  outer_num_ = bottom[0]->count(0, softmax_axis_);
-  inner_num_ = bottom[0]->count(softmax_axis_ + 1);
+  
+  // 分离内外循环变量初始化
+  outer_num_ = bottom[0]->count(0, softmax_axis_); // 1
+  inner_num_ = bottom[0]->count(softmax_axis_ + 1); // 12
+
+  // scale_ [1,1,12]
   vector<int> scale_dims = bottom[0]->shape();
   scale_dims[softmax_axis_] = 1;
   scale_.Reshape(scale_dims);
@@ -29,26 +36,44 @@ void SoftmaxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
   Dtype* scale_data = scale_.mutable_cpu_data();
-  int channels = bottom[0]->shape(softmax_axis_);
-  int dim = bottom[0]->count() / outer_num_;
+  int channels = bottom[0]->shape(softmax_axis_); // 3
+  int dim = bottom[0]->count() / outer_num_; // 3*12
   caffe_copy(bottom[0]->count(), bottom_data, top_data);
   // We need to subtract the max to avoid numerical issues, compute the exp,
   // and then normalize.
   for (int i = 0; i < outer_num_; ++i) {
-    // initialize scale_data to the first plane
+    // initialize scale_data to the first plane： bottom[i*(3*12)] -> scale data 拷贝 12 个
     caffe_copy(inner_num_, bottom_data + i * dim, scale_data);
+	// scale data 存储了 12 个最大值， 
+
+	/*
+	   input [1,3,12]
+	        0  1  2  3  4  5  6  7  8  9  10 11   H*W
+		0	-  -  -  -  -  -  -  -  -  -  -   -
+	    1   -  -  -  -  -  -  -  -  -  -  -   -  
+		2   -  -  -  -  -  -  -  -  -  -  -   -
+    channel
+			|
+			|
+		   max
+		
+	scale_data
+	        0  1  2  3  4  5  6  7  8  9  10 11
+	        -  -  -  -  -  -  -  -  -  -  -   -
+	
+	*/
     for (int j = 0; j < channels; j++) {
       for (int k = 0; k < inner_num_; k++) {
         scale_data[k] = std::max(scale_data[k],
-            bottom_data[i * dim + j * inner_num_ + k]);
+            bottom_data[i * dim + j * inner_num_ + k]); // i * dim 给定了 batch j * inner_num_ 给定了channel 
       }
     }
-    // subtraction
+    // subtraction 利用矩阵乘法实现广播 sum_multiplier_[3, 1] * scale_data [1,12]  top_data [1,3,12]
     caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, channels, inner_num_,
         1, -1., sum_multiplier_.cpu_data(), scale_data, 1., top_data);
     // exponentiation
     caffe_exp<Dtype>(dim, top_data, top_data);
-    // sum after exp
+    // sum after exp :  top_data[3,1] *  sum_multiplier_[1,12]
     caffe_cpu_gemv<Dtype>(CblasTrans, channels, inner_num_, 1.,
         top_data, sum_multiplier_.cpu_data(), 0., scale_data);
     // division
