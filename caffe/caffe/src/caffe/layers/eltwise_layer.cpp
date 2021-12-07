@@ -16,9 +16,11 @@ void EltwiseLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       == EltwiseParameter_EltwiseOp_PROD
       && this->layer_param().eltwise_param().coeff_size())) <<
       "Eltwise layer only takes coefficients for summation.";
+  // 获取 elewise 对应 的 operation
   op_ = this->layer_param_.eltwise_param().operation();
   // Blob-wise coefficients for the elementwise operation.
   coeffs_ = vector<Dtype>(bottom.size(), 1);
+  // 读取 系数 coeffs_
   if (this->layer_param().eltwise_param().coeff_size()) {
     for (int i = 0; i < bottom.size(); ++i) {
       coeffs_[i] = this->layer_param().eltwise_param().coeff(i);
@@ -51,7 +53,9 @@ void EltwiseLayer<Dtype>::Forward_cpu(
   Dtype* top_data = top[0]->mutable_cpu_data();
   switch (op_) {
   case EltwiseParameter_EltwiseOp_PROD:
+    // 累乘计算
     caffe_mul(count, bottom[0]->cpu_data(), bottom[1]->cpu_data(), top_data);
+    // caffe 支持 n 个输入的 mul
     for (int i = 2; i < bottom.size(); ++i) {
       caffe_mul(count, top_data, bottom[i]->cpu_data(), top_data);
     }
@@ -60,6 +64,7 @@ void EltwiseLayer<Dtype>::Forward_cpu(
     caffe_set(count, Dtype(0), top_data);
     // TODO(shelhamer) does BLAS optimize to sum for coeff = 1?
     for (int i = 0; i < bottom.size(); ++i) {
+      // top_data = coeffs_[i] * data + top_data
       caffe_axpy(count, coeffs_[i], bottom[i]->cpu_data(), top_data);
     }
     break;
